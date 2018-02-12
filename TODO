@@ -1,0 +1,3 @@
+1. Constantly listen for new messages and reply to each.
+2. Acknowledge each message as it receives it and tells Telegram to not send us that message again.
+3. Correctly encode our messages to account for URL formatting.
