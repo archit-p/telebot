@@ -2,9 +2,11 @@ import json
 import requests
 import time
 import urllib.parse
+from dbhelper import DBHelper
 
 token = '500030887:AAHCmiUz0Rfg608bgOnffCYo3-K5JevMVck' 
 URL = 'https://api.telegram.org/bot{}/'.format(token)
+db = DBHelper()
 
 def get_url(url):
     response = requests.get(url)
@@ -41,14 +43,22 @@ def send_message(text, chat_id):
     url = URL + 'sendMessage?text={}&chat_id={}'.format(text, chat_id)
     get_url(url)
 
-def echo_all(updates):
+def handle_updates(updates):
     for update in updates['result']:
         try:
             text = update['message']['text']
             chat = update['message']['chat']['id']
-            send_message(text, chat)
-        except Exception as e:
-            print(e)
+            items = db.get_items()
+            if text in items:
+                db.delete_item(text)
+                items = db.get_items()
+            else:
+                db.add_item(text)
+                items = db.get_items()
+            message = '\n'.join(items)
+            send_message(message, chat)
+        except KeyError:
+            pass
 
 def main():
     last_update_id = None
