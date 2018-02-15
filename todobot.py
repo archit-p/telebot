@@ -38,27 +38,55 @@ def get_last_chat_id_and_text(updates):
     chat_id = updates['result'][last_update]['message']['chat']['id']
     return (text, chat_id)
 
-def send_message(text, chat_id):
+def send_message(text, chat_id, reply_markup=None):
     text = urllib.parse.quote_plus(text)
-    url = URL + 'sendMessage?text={}&chat_id={}'.format(text, chat_id)
+    url = URL + 'sendMessage?text={}&chat_id={}&parse_mode=Markdown'.format(text, chat_id)
+    if reply_markup:
+        url += '&reply_markup={}'.format(reply_markup)
     get_url(url)
 
 def handle_updates(updates):
     for update in updates['result']:
-        try:
-            text = update['message']['text']
-            chat = update['message']['chat']['id']
-            items = db.get_items()
-            if text in items:
-                db.delete_item(text)
-                items = db.get_items()
-            else:
-                db.add_item(text)
-                items = db.get_items()
+        text = update['message']['text']
+        chat = update['message']['chat']['id']
+        items = db.get_items(chat)
+        if text == '/done':
+            keyboard = build_keyboard(items)
+            send_message("Select an item to delete", chat, keyboard)
+        elif text == '/start':
+            send_message("Welcome to todofy! Send any text to me and I'll store it as an item.\nSend /done to mark items as done.\nSend /display to view your list.", chat)
+        elif text == '/display':
+            items = db.get_items(chat)
             message = '\n'.join(items)
-            send_message(message, chat)
-        except KeyError:
-            pass
+            if(message != '\n' and message != ''):
+                send_message(message, chat)
+            else:
+                send_message("You list is empty for today. Please send /start to start making a new list", chat)
+        elif text.startswith('/'):
+            continue
+        elif text in items:
+            message = "Marking '{}' as complete"
+            send_message(message.format(text), chat)
+            db.delete_item(text, chat)
+            items = db.get_items(chat)
+            if(items == []):
+                send_message('Congrats on having finished all tasks!', chat)
+            else:
+                keyboard = build_keyboard(items)
+                send_message('Select another item to delete', chat, keyboard)
+        else:
+            db.add_item(text, chat)
+            items = db.get_items(chat)
+            message = '\n'.join(items)
+            if(message != '\n' and message != ''):
+                send_message(message, chat)
+            else:
+                send_message("Your list is empty for today. Please send /start to start making a new list", chat)
+
+def build_keyboard(items):
+    keyboard = [[item] for item in items]
+    reply_markup = {'keyboard':keyboard, 'one_time_kayboard': True}
+    return json.dumps(reply_markup)
 
 def main():
     db.setup()
