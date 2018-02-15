@@ -61,13 +61,14 @@ def handle_updates(updates):
             pass
 
 def main():
+    db.setup()
     last_update_id = None
     while True:
         updates = get_updates(last_update_id)
         print('Getting updates')
         if len(updates['result']) > 0:
             last_update_id = get_last_update_id(updates) + 1
-            echo_all(updates)
+            handle_updates(updates)
         time.sleep(0.5)
 
 if __name__ == '__main__':
