@@ -6,7 +6,7 @@ from dbhelper import DBHelper
 
 token = '500030887:AAHCmiUz0Rfg608bgOnffCYo3-K5JevMVck' 
 URL = 'https://api.telegram.org/bot{}/'.format(token)
-db = DBHelper()
+db = DBHelper('/var/www/todofy-chatbot/todo.sqlite')
 
 def get_url(url):
     response = requests.get(url)
@@ -45,43 +45,48 @@ def send_message(text, chat_id, reply_markup=None):
         url += '&reply_markup={}'.format(reply_markup)
     get_url(url)
 
+def handle_update(update):
+    print('Handle_update')
+    text = update['message']['text']
+    chat = update['message']['chat']['id']
+    items = db.get_items(chat)
+    if text == '/done':
+        keyboard = build_keyboard(items)
+        send_message("Select an item to delete", chat, keyboard)
+    elif text == '/start':
+        send_message("Welcome to todofy! Send any text to me and I'll store it as an item.\nSend /done to mark items as done.\nSend /display to view your list.", chat)
+    elif text == '/display':
+        items = db.get_items(chat)
+        message = '\n'.join(items)
+        if(message != '\n' and message != ''):
+            send_message(message, chat)
+        else:
+            send_message("You list is empty for today. Please send /start to start making a new list", chat)
+    elif text.startswith('/'):
+        return
+    elif text in items:
+        message = "Marking '{}' as complete"
+        send_message(message.format(text), chat)
+        db.delete_item(text, chat)
+        items = db.get_items(chat)
+        if(items == []):
+            send_message('Congrats on having finished all tasks!', chat)
+        else:
+            keyboard = build_keyboard(items)
+            send_message('Select another item to delete', chat, keyboard)
+    else:
+        db.add_item(text, chat)
+        items = db.get_items(chat)
+        message = '\n'.join(items)
+        if(message != '\n' and message != ''):
+            send_message(message, chat)
+        else:
+            send_message("Your list is empty for today. Please send /start to start making a new list", chat)
+
+
 def handle_updates(updates):
     for update in updates['result']:
-        text = update['message']['text']
-        chat = update['message']['chat']['id']
-        items = db.get_items(chat)
-        if text == '/done':
-            keyboard = build_keyboard(items)
-            send_message("Select an item to delete", chat, keyboard)
-        elif text == '/start':
-            send_message("Welcome to todofy! Send any text to me and I'll store it as an item.\nSend /done to mark items as done.\nSend /display to view your list.", chat)
-        elif text == '/display':
-            items = db.get_items(chat)
-            message = '\n'.join(items)
-            if(message != '\n' and message != ''):
-                send_message(message, chat)
-            else:
-                send_message("You list is empty for today. Please send /start to start making a new list", chat)
-        elif text.startswith('/'):
-            continue
-        elif text in items:
-            message = "Marking '{}' as complete"
-            send_message(message.format(text), chat)
-            db.delete_item(text, chat)
-            items = db.get_items(chat)
-            if(items == []):
-                send_message('Congrats on having finished all tasks!', chat)
-            else:
-                keyboard = build_keyboard(items)
-                send_message('Select another item to delete', chat, keyboard)
-        else:
-            db.add_item(text, chat)
-            items = db.get_items(chat)
-            message = '\n'.join(items)
-            if(message != '\n' and message != ''):
-                send_message(message, chat)
-            else:
-                send_message("Your list is empty for today. Please send /start to start making a new list", chat)
+        handle_update(update)
 
 def build_keyboard(items):
     keyboard = [[item] for item in items]
