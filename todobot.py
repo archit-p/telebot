@@ -61,7 +61,7 @@ def handle_update(update):
         if(message != '\n' and message != ''):
             send_message(message, chat)
         else:
-            send_message("You list is empty for today. Please send /start to start making a new list", chat)
+            send_message("Your list is empty for today. Please send /start to start making a new list", chat)
     elif text.startswith('/'):
         return
     elif text in items:
@@ -79,7 +79,8 @@ def handle_update(update):
         items = db.get_items(chat)
         message = '\n'.join(items)
         if(message != '\n' and message != ''):
-            send_message(message, chat)
+            send_message("Added '" + text + "' to your list!", chat)
+            send_message("Your list so far is:\n" + message, chat)
         else:
             send_message("Your list is empty for today. Please send /start to start making a new list", chat)
 
